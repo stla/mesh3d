@@ -3,7 +3,7 @@ module Undup
   where
 import           Data.List
 import           Data.Maybe
-import           Data.Vector.Unboxed         (Vector, freeze, Unbox)
+import           Data.Vector.Unboxed         (Vector, freeze, Unbox, (!))
 import           Data.Vector.Unboxed.Mutable (IOVector, new, write)
 import qualified Data.Vector.Unboxed.Mutable as VM
 
@@ -45,3 +45,15 @@ unique' vs = do
   nvs'' <- freeze nvs'
   idx' <- freeze idx
   return (nvs'', idx')
+
+undupMesh :: forall a . (Unbox a, Eq a) => ([a], [[Int]]) -> IO (Vector a, [[Int]])
+undupMesh (vs, faces) = do
+  (nvs, idx) <- unique' vs
+  let nfaces = map (map (idx !)) faces
+  return (nvs, nfaces)
+
+vs :: [Double]
+vs = [1, 2, 3, 1, 2, 4, 1, 3, 4, 2, 3, 4]
+
+faces :: [[Int]]
+faces = [[0,1,2],[3,4,5],[6,7,8],[9,10,11]]
