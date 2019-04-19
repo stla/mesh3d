@@ -1,11 +1,12 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 module Undup
   where
-import           Control.Monad               ((>>=))
+import           Control.Monad               ((>>=), when)
 import           Data.List
 import           Data.Maybe
-import           Data.Vector.Unboxed         (Unbox, Vector, freeze, (!))
-import           Data.Vector.Unboxed.Mutable (IOVector, new, write)
+import           Data.Vector.Unboxed         (Unbox, Vector, freeze, (!), unsafeFreeze)
+import           Data.Vector.Unboxed.Mutable (IOVector, new, write, unsafeRead, unsafeWrite)
 import qualified Data.Vector.Unboxed.Mutable as VM
 
 unique :: Eq a => [a] -> ([a], [Int])
@@ -20,29 +21,28 @@ unique' vs = do
   idx <- VM.replicate n 0 :: IO (IOVector Int)
   visited <- VM.replicate n False :: IO (IOVector Bool)
   nvs <- new n :: IO (IOVector a)
-  let inner :: Int -> Int -> Int -> IO ()
-      inner i j count | j == n = return ()
-                      | otherwise =
-                        if vs !! i == vs !! j
-                          then do
-                            write visited j True
-                            write idx j count
-                            inner i (j+1) count
-                          else inner i (j+1) count
+  let inner :: a -> Int -> Int -> IO ()
+      inner !v j !count | j == n = return ()
+                        | otherwise = do
+                          when (v == vs !! j) $ do
+                            unsafeWrite visited j True
+                            unsafeWrite idx j count
+                          inner v (j+1) count
   let go :: Int -> Int -> IO (IOVector a)
-      go i count | i == n = return $ VM.take count nvs
-                 | otherwise = do
-                   vst <- VM.read visited i
-                   if not vst
-                     then do
-                       write nvs count (vs !! i)
-                       write idx i count
-                       write visited i True
-                       _ <- inner i (i+1) count
-                       go (i+1) (count + 1)
-                     else go (i+1) count
-  nvs' <- go 0 0 >>= freeze
-  idx' <- freeze idx
+      go i !count | i == n = return $ VM.take count nvs
+                  | otherwise = do
+                    vst <- unsafeRead visited i
+                    if not vst
+                      then do
+                        let v = vs !! i
+                        unsafeWrite nvs count v
+                        unsafeWrite idx i count
+                        unsafeWrite visited i True
+                        _ <- inner v (i+1) count
+                        go (i+1) (count + 1)
+                      else go (i+1) count
+  nvs' <- go 0 0 >>= unsafeFreeze
+  idx' <- unsafeFreeze idx
   return (nvs', idx')
 
 undupMesh :: forall a . (Unbox a, Eq a) => ([a], [[Int]]) -> IO (Vector a, [[Int]])
