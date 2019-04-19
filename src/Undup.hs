@@ -1,9 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Undup
   where
+import           Control.Monad               ((>>=))
 import           Data.List
 import           Data.Maybe
-import           Data.Vector.Unboxed         (Vector, freeze, Unbox, (!))
+import           Data.Vector.Unboxed         (Unbox, Vector, freeze, (!))
 import           Data.Vector.Unboxed.Mutable (IOVector, new, write)
 import qualified Data.Vector.Unboxed.Mutable as VM
 
@@ -28,7 +29,6 @@ unique' vs = do
                             write idx j count
                             inner i (j+1) count
                           else inner i (j+1) count
-
   let go :: Int -> Int -> IO (IOVector a)
       go i count | i == n = return $ VM.take count nvs
                  | otherwise = do
@@ -41,10 +41,9 @@ unique' vs = do
                        _ <- inner i (i+1) count
                        go (i+1) (count + 1)
                      else go (i+1) count
-  nvs' <- go 0 0
-  nvs'' <- freeze nvs'
+  nvs' <- go 0 0 >>= freeze
   idx' <- freeze idx
-  return (nvs'', idx')
+  return (nvs', idx')
 
 undupMesh :: forall a . (Unbox a, Eq a) => ([a], [[Int]]) -> IO (Vector a, [[Int]])
 undupMesh (vs, faces) = do
