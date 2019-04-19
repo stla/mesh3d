@@ -1,8 +1,9 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Undup
   where
 import           Data.List
 import           Data.Maybe
-import           Data.Vector.Unboxed         (Vector, freeze)
+import           Data.Vector.Unboxed         (Vector, freeze, Unbox)
 import           Data.Vector.Unboxed.Mutable (IOVector, new, write)
 import qualified Data.Vector.Unboxed.Mutable as VM
 
@@ -12,15 +13,15 @@ unique vs = (vsnub, indices)
   vsnub = nub vs
   indices = map (\v -> fromJust $ elemIndex v vsnub) vs
 
-unique' :: [Double] -> IO (Vector Double, Vector Int)
+unique' :: forall a . (Unbox a, Eq a) => [a] -> IO (Vector a, Vector Int)
 unique' vs = do
   let n = length vs
   idx <- VM.replicate n 0 :: IO (IOVector Int)
   visited <- VM.replicate n False :: IO (IOVector Bool)
-  nvs <- new n :: IO (IOVector Double)
+  nvs <- new n :: IO (IOVector a)
   let inner :: Int -> Int -> Int -> IO ()
       inner i j count | j == n = return ()
-                      | otherwise = 
+                      | otherwise =
                         if vs !! i == vs !! j
                           then do
                             write visited j True
@@ -28,7 +29,7 @@ unique' vs = do
                             inner i (j+1) count
                           else inner i (j+1) count
 
-  let go :: Int -> Int -> IO (IOVector Double)
+  let go :: Int -> Int -> IO (IOVector a)
       go i count | i == n = return $ VM.take count nvs
                  | otherwise = do
                    vst <- VM.read visited i
