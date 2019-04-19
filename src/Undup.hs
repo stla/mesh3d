@@ -1,9 +1,9 @@
 module Undup
   where
-import Data.List
-import Data.Maybe
-import Data.Vector.Unboxed (Vector, freeze)
-import Data.Vector.Unboxed.Mutable (IOVector, new, write)
+import           Data.List
+import           Data.Maybe
+import           Data.Vector.Unboxed         (Vector, freeze)
+import           Data.Vector.Unboxed.Mutable (IOVector, new, write)
 import qualified Data.Vector.Unboxed.Mutable as VM
 
 unique :: Eq a => [a] -> ([a], [Int])
@@ -20,7 +20,7 @@ unique' vs = do
   nvs <- new n :: IO (IOVector Double)
   let inner :: Int -> Int -> Int -> IO ()
       inner i j count | j == n = return ()
-                      | otherwise = do
+                      | otherwise = 
                         if vs !! i == vs !! j
                           then do
                             write visited j True
